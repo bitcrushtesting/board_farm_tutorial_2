@@ -1,0 +1,24 @@
+---
+name: Check Wiki
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'  # Runs every Monday at midnight
+  push:
+    branches:
+      - main
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+
+      - name: Link Checker
+        id: lychee
+        uses: lycheeverse/lychee-action@v1

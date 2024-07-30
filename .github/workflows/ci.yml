@@ -1,0 +1,83 @@
+---
+name: NRF52 CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        board:
+          - {name: "nrf52"}
+          - {name: "nrf53"}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y make wget tar tree
+
+      - name: Download and install gcc-arm-none-eabi-7-2018-q2-update
+        run: |
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2018q2/gcc-arm-none-eabi-7-2018-q2-update-linux.tar.bz2
+          tar -xjf gcc-arm-none-eabi-7-2018-q2-update-linux.tar.bz2
+          sudo mv gcc-arm-none-eabi-7-2018-q2-update /usr/local/
+
+      - name: Download Nordic SDK
+        run: |
+          wget -q https://developer.nordicsemi.com/nRF5_SDK/nRF5_SDK_v17.x.x/nRF5_SDK_17.0.2_d674dde.zip
+          unzip nRF5_SDK_17.0.2_d674dde.zip -d $GITHUB_WORKSPACE
+
+      - name: Build Heart Rate Example
+        run: |
+          cd $GITHUB_WORKSPACE/nRF5_SDK_17.0.2_d674dde/examples/ble_peripheral/ble_app_hrs/pca10040/s132/armgcc
+          make OUTPUT_DIRECTORY=$GITHUB_WORKSPACE/_build
+
+      - name: List Files
+        run: tree ${{ github.workspace }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble_app_hrs_${{ matrix.board.name }}
+          path: ${{ github.workspace }}/_build/nrf52832_xxaa.hex
+          if-no-files-found: error
+
+  test:
+    runs-on: self-hosted
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ble_app_hrs_pca10040_s132
+          path: _build/
+          if-no-files-found: error
+
+      - name: Flash NRF52 Development Board
+        run: |
+          nrfjprog --eraseall -f nrf52
+          nrfjprog --program ./_build/nrf52832_xxaa.hex --verify -f nrf52
+          nrfjprog --reset -f nrf52
+
+      - name: Test
+        run: |
+          python3 tests/test_hrs.py
