@@ -1,0 +1,54 @@
+---
+- name: Install NRF52 Tools
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install dependencies
+      apt:
+        name:
+          - wget
+          - tar
+          - dpkg
+        state: present
+
+    - name: Download nRF Command Line Tools
+      get_url:
+        url: https://www.nordicsemi.com/-/media/Software-and-other-downloads/Desktop-software/nRF-Command-Line-Tools/nrf-command-line-tools-linux64-10.13.0.tar.gz
+        dest: /tmp/nrf-command-line-tools-linux64-10.13.0.tar.gz
+
+    - name: Extract nRF Command Line Tools
+      unarchive:
+        src: /tmp/nrf-command-line-tools-linux64-10.13.0.tar.gz
+        dest: /tmp/
+        creates: /tmp/nrf-command-line-tools
+
+    - name: Install JLink package
+      apt:
+        deb: /tmp/JLink_Linux_V684b_x86_64.deb
+
+    - name: Install nRF Command Line Tools package
+      apt:
+        deb: /tmp/nRF-Command-Line-Tools_10_13_0_Linux-amd64.deb
+
+    - name: Fix missing dependencies
+      apt:
+        name: -f
+        state: present
+        force: yes
+
+    - name: Clean up temporary files
+      file:
+        path: /tmp/nrf-command-line-tools-linux64-10.13.0.tar.gz
+        state: absent
+
+    - name: Verify installation
+      command: nrfjprog --version
+      register: result
+      failed_when: "'JLinkARM' not in result.stdout"
+    - debug:
+        msg: "nrfjprog version installed: {{ result.stdout }}"

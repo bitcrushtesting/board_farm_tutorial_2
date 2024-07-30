@@ -1,0 +1,9 @@
+build/
+
+pyvenv.cfg
+scripts/bin/
+scripts/lib/
+scripts/share/
+
+
+

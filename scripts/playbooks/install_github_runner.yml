@@ -1,0 +1,43 @@
+---
+- hosts: raspberrypi
+  become: yes
+  tasks:
+    - name: Install dependencies
+      apt:
+        name:
+          - curl
+          - tar
+          - gzip
+        state: present
+        update_cache: yes
+
+    - name: Create a directory for the GitHub runner
+      file:
+        path: /home/pi/actions-runner
+        state: directory
+
+    - name: Download the GitHub runner package
+      get_url:
+        url: https://github.com/actions/runner/releases/download/v2.284.0/actions-runner-linux-arm64-2.284.0.tar.gz
+        dest: /home/pi/actions-runner/actions-runner-linux-arm64-2.284.0.tar.gz
+
+    - name: Extract the GitHub runner package
+      unarchive:
+        src: /home/pi/actions-runner/actions-runner-linux-arm64-2.284.0.tar.gz
+        dest: /home/pi/actions-runner/
+        remote_src: yes
+
+    - name: Configure the GitHub runner
+      shell: ./config.sh --url https://github.com/{{ repo_owner }}/{{ repo_name }} --token {{ runner_token }}
+      args:
+        chdir: /home/pi/actions-runner
+
+    - name: Install the service
+      shell: ./svc.sh install
+      args:
+        chdir: /home/pi/actions-runner
+
+    - name: Start the GitHub runner service
+      shell: ./svc.sh start
+      args:
+        chdir: /home/pi/actions-runner
